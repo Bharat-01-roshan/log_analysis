@@ -16,15 +16,13 @@ app.add_middleware(
 )
 
 # Configuration
-ES_HOST = os.getenv("ES_HOST", "http://elasticsearch:9200")
+ES_USER = "elastic"
+ES_PASS = "2W-HFs8RGlThS9id=R9d"
+ES_HOST = f"http://{ES_USER}:{ES_PASS}@127.0.0.1:9200"
 ES_INDEX = "sma_logs"
 
-# Connect with authentication and SSL skip for local HTTPS
-es_client = Elasticsearch(
-    [ES_HOST],
-    verify_certs=False,
-    ssl_show_warn=False
-)
+# Connect directly with the string to avoid list-parsing bugs
+es_client = Elasticsearch(ES_HOST, verify_certs=False)
 
 @app.get("/")
 def root():

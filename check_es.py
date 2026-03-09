@@ -6,16 +6,14 @@ import json
 urllib3.disable_warnings()
 
 # Configuration
-ES_HOST = "https://172.29.50.13:9200"
+ES_HOST = "http://172.29.50.13:9200"
 ES_USER = "elastic"
 ES_PASS = "2W-HFs8RGlThS9id=R9d"
 ES_INDEX = "sma_logs"
 
 # Connect
 es = Elasticsearch(
-    "https://172.29.50.13:9200",
-    basic_auth=(ES_USER, ES_PASS),
-    verify_certs=False
+    f"http://{ES_USER}:{ES_PASS}@172.29.50.13:9200"
 )
 
 

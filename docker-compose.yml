@@ -7,24 +7,28 @@ services:
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false # Simplified for the demo
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=2W-HFs8RGlThS9id=R9d
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status.*green\\|yellow'"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || curl -s -k https://localhost:9200 >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Kibana: Log Visualization (Standard ELK)
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.10.0
+    image: docker.elastic.co/kibana/kibana:8.10.2
     container_name: kibana
     ports:
       - "5601:5601"
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=2W-HFs8RGlThS9id=R9d
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=none
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -48,3 +52,15 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+
+  # Vector: Log Ingestor (UDP 514)
+  vector:
+    image: timberio/vector:0.31.0-alpine
+    container_name: vector
+    volumes:
+      - ./ingestion/vector.yaml:/etc/vector/vector.yaml:ro
+    command: ["--config", "/etc/vector/vector.yaml"]
+    ports:
+      - "514:514/udp"
+    depends_on:
+      - redis

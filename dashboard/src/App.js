@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchLogs, fetchStats } from './services/api';
 import LogTable from './components/LogTable';
 import StatsOverview from './components/StatsOverview';
-import { RefreshCw, ShieldAlert, ListFilter, BrainCircuit, Sparkles } from 'lucide-react';
+import { RefreshCw, ShieldAlert, ListFilter, BrainCircuit, Sparkles, AlertTriangle } from 'lucide-react';
 
 function App() {
   const [logs, setLogs] = useState([]);
@@ -10,6 +10,7 @@ function App() {
   const [severityFilter, setSeverityFilter] = useState('');
   const [analyzedOnly, setAnalyzedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -21,10 +22,20 @@ function App() {
         }),
         fetchStats()
       ]);
-      setLogs(newLogs);
-      setStats(newStats);
+      
+      if (newLogs && newLogs.error) {
+        setError(newLogs.error);
+        setLogs([]);
+      } else {
+        setLogs(Array.isArray(newLogs) ? newLogs : []);
+        setError(null);
+      }
+      
+      setStats(newStats && !newStats.error ? newStats : null);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+      setError('Connection failed. Is the backend API running?');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -102,6 +113,22 @@ function App() {
 
         {/* Overview Stats */}
         <StatsOverview stats={stats} />
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center text-red-700 text-sm font-bold shadow-sm animate-shake">
+            <AlertTriangle className="mr-3 h-5 w-5 text-red-500" />
+            <div className="flex-1">
+              <span className="uppercase text-[10px] font-black block mb-0.5 opacity-60">System Alert</span>
+              {error}
+            </div>
+            <button 
+              onClick={loadData}
+              className="ml-4 px-3 py-1 bg-red-100 hover:bg-red-200 rounded-lg transition-colors text-xs"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
 
         {/* Log Stream Header */}
         <div className="flex justify-between items-end mb-6">

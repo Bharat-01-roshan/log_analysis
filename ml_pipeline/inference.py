@@ -3,20 +3,31 @@ import time
 import os
 import re
 import requests
+import urllib3
 from redis import Redis
 from elasticsearch import Elasticsearch
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import IsolationForest
 import joblib
-import google.generativeai as genai
+from google import genai
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
+# Disable SSL warnings (even if using http, good for compatibility)
+urllib3.disable_warnings()
 
 # --- Configuration ---
-REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-REDIS_KEY = "syslog_stream"
-ES_HOST = os.getenv("ES_HOST", "http://elasticsearch:9200")
-ES_INDEX = "sma_logs"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_KEY = os.getenv("REDIS_KEY", "syslog_stream")
+ES_USER = os.getenv("ES_USER", "elastic")
+ES_PASS = os.getenv("ES_PASS", "2W-HFs8RGlThS9id=R9d")
+ES_SERVER = os.getenv("ES_SERVER", "172.29.50.13")
+ES_PORT = os.getenv("ES_PORT", "9200")
+ES_INDEX = os.getenv("ES_INDEX", "sma_logs")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "") # Add your Slack/Discord webhook here
+ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "")
 
 # Window for correlation (in seconds)
 CORRELATION_WINDOW = 300 
@@ -65,13 +76,18 @@ def get_ip_location(ip):
 
 # --- Gemini Setup ---
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model_gemini = genai.GenerativeModel('gemini-1.5-flash')
+    client_gemini = genai.Client(api_key=GEMINI_API_KEY)
 else:
-    model_gemini = None
+    client_gemini = None
 
 redis_client = Redis(host=REDIS_HOST, port=6379, db=0)
-es_client = Elasticsearch([ES_HOST], verify_certs=False, ssl_show_warn=False)
+
+# Connect with basic_auth separately (fixes common 400 issues with passwords containing symbols)
+es_client = Elasticsearch(
+    [f"http://{ES_SERVER}:{ES_PORT}"],
+    basic_auth=(ES_USER, ES_PASS),
+    verify_certs=False
+)
 
 # --- Mock ML Setup ---
 def load_model():
@@ -88,10 +104,13 @@ def load_model():
 model, vectorizer = load_model()
 
 def analyze_with_llm(log_entry, anomaly_score, geo_data):
-    if not model_gemini: return None
+    if not client_gemini: return None
     prompt = f"Analyze syslog: Score {anomaly_score:.4f}, Origin {geo_data['city']}, {geo_data['country']}. Log: {json.dumps(log_entry)}. Return JSON: summary, threat_category, is_anomaly, remediation, zero_day_potential (0-1), reasoning."
     try:
-        response = model_gemini.generate_content(prompt)
+        response = client_gemini.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         text = response.text.strip()
         if text.startswith("```json"): text = text[7:-3]
         elif text.startswith("```"): text = text[3:-3]
@@ -114,17 +133,21 @@ def determine_severity(msg, anomaly_score, hit_count):
     return severity
 
 def create_index_if_not_exists():
-    if not es_client.indices.exists(index=ES_INDEX):
-        mapping = {"mappings": {"properties": {
-            "timestamp": {"type": "date"}, "device_id": {"type": "keyword"}, "host": {"type": "keyword"},
-            "source_ip": {"type": "keyword"}, "geo_location": {"type": "geo_point"},
-            "country": {"type": "keyword"}, "city": {"type": "keyword"}, "severity": {"type": "keyword"},
-            "message": {"type": "text"}, "anomaly_score": {"type": "float"}, "llm_analysis": {"properties": {
-                "summary": {"type": "text"}, "threat_category": {"type": "keyword"}, "is_anomaly": {"type": "boolean"},
-                "remediation": {"type": "text"}, "zero_day_potential": {"type": "float"}, "reasoning": {"type": "text"}
-            }}
-        }}}
-        es_client.indices.create(index=ES_INDEX, body=mapping)
+    try:
+        if not es_client.indices.exists(index=ES_INDEX):
+            mapping = {"mappings": {"properties": {
+                "timestamp": {"type": "date"}, "device_id": {"type": "keyword"}, "host": {"type": "keyword"},
+                "source_ip": {"type": "keyword"}, "geo_location": {"type": "geo_point"},
+                "country": {"type": "keyword"}, "city": {"type": "keyword"}, "severity": {"type": "keyword"},
+                "message": {"type": "text"}, "anomaly_score": {"type": "float"}, "llm_analysis": {"properties": {
+                    "summary": {"type": "text"}, "threat_category": {"type": "keyword"}, "is_anomaly": {"type": "boolean"},
+                    "remediation": {"type": "text"}, "zero_day_potential": {"type": "float"}, "reasoning": {"type": "text"}
+                }}
+            }}}
+            es_client.indices.create(index=ES_INDEX, body=mapping)
+            print(f"[*] Created index: {ES_INDEX}")
+    except Exception as e:
+        print(f"[!] Warning: Could not verify or create index: {e}")
 
 def process_logs():
     create_index_if_not_exists()
@@ -162,7 +185,8 @@ def process_logs():
             
             # Send Real-time alert for Critical or High severity
             if "CRITICAL" in severity or (severity == "High" and llm_data and llm_data.get('is_anomaly')):
-                send_alert(message, severity, source_ip, device_id, llm_data.get('summary'))
+                llm_summary = llm_data.get('summary') if llm_data else None
+                send_alert(message, severity, source_ip, device_id, llm_summary)
 
         # 4. Final Enrichment
         enriched_log = {

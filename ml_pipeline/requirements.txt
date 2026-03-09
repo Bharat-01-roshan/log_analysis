@@ -1,11 +1,7 @@
-# ML Pipeline & Worker Dependencies
-redis==4.5.4
-elasticsearch==7.17.9
-pandas==1.5.3
-scikit-learn==1.2.2
-numpy==1.23.5
-pydantic==1.10.7
-joblib==1.2.0
-urllib3<2.0.0
-google-generativeai
+redis
+elasticsearch
+scikit-learn
+joblib
+google-genai
+python-dotenv
 requests

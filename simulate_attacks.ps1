@@ -3,8 +3,8 @@
 
 Write-Host "[*] Starting SMA Attack Simulator..." -ForegroundColor Cyan
 
-$CENTRAL_IP = "YOUR_CENTRAL_MACHINE_IP"
-$PORT = 5140
+$CENTRAL_IP = "localhost"
+$PORT = 514
 
 function Send-Syslog {
     param($msg)
