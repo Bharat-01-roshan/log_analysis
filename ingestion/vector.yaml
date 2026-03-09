@@ -1,0 +1,20 @@
+# Vector Configuration for SMA
+
+sources:
+  # Listen for syslogs over UDP (common for firewalls/servers)
+  syslog_in:
+    type: "syslog"
+    address: "0.0.0.0:514"
+    mode: "udp"
+
+sinks:
+  # Push raw logs to Redis for worker processing
+  redis_out:
+    type: "redis"
+    inputs:
+      - "syslog_in"
+    endpoint: "redis://redis:6379/0"
+    key: "syslog_stream"
+    data_type: "list"
+    encoding:
+      codec: "json"

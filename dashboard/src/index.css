@@ -1,0 +1,6 @@
+/* Tailwing handles most styling via CDN in index.html for this demo */
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
