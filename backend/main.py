@@ -77,6 +77,13 @@ async def get_stats():
                 "aggs": {
                     "avg_anomaly": {"avg": {"field": "anomaly_score"}}
                 }
+            },
+            "anomaly_distribution": {
+                "histogram": {
+                    "field": "anomaly_score",
+                    "interval": 0.2,
+                    "extended_bounds": {"min": -1, "max": 1}
+                }
             }
         }
     }

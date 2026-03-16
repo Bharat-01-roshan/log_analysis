@@ -4,11 +4,13 @@ services:
   # Elasticsearch: Centralized Storage
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
-    container_name: elasticsearch
+    container_name: logstash_user
+    # container_name: elasticsearch
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=2W-HFs8RGlThS9id=R9d
+      - xpack.security.enabled=false
+      # - ELASTIC_PASSWORD=2W-HFs8RGlThS9id=R9d
+      - ELASTIC_PASSWORD=StrongPass123
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
@@ -25,9 +27,11 @@ services:
     ports:
       - "5601:5601"
     environment:
-      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=2W-HFs8RGlThS9id=R9d
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      # - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_USERNAME=logstash_user
+      # - ELASTICSEARCH_PASSWORD=2W-HFs8RGlThS9id=R9d
+      - ELASTICSEARCH_PASSWORD=StrongPass123
       - ELASTICSEARCH_SSL_VERIFICATIONMODE=none
     depends_on:
       elasticsearch:
