@@ -37,6 +37,6 @@ npm start
 ```
 
 ## 🛠️ Connectivity & Debugging
-- **Elasticsearch:** `https://172.29.50.13:9200`
+- **Elasticsearch:** `http://localhost:9200` (or `ES_SERVER` from `.env`)
 - **Check Status:** `python check_es.py`
 - **Test Ingestion:** `.	est_ingestion.ps1`

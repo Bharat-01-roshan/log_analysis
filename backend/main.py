@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from elasticsearch import Elasticsearch
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="SMA - Syslog ML Analysis API")
 
@@ -16,13 +20,20 @@ app.add_middleware(
 )
 
 # Configuration
-ES_USER = "elastic"
-ES_PASS = "2W-HFs8RGlThS9id=R9d"
-ES_HOST = f"http://{ES_USER}:{ES_PASS}@127.0.0.1:9200"
+ES_USER = os.getenv("ES_USER", "elastic")
+ES_PASS = os.getenv("ES_PASS", "2W-HFs8RGlThS9id=R9d")
+ES_SERVER = os.getenv("ES_SERVER", "localhost")
+ES_PORT = os.getenv("ES_PORT", "9200")
 ES_INDEX = "sma_logs"
 
+ES_HOST = f"http://{ES_SERVER}:{ES_PORT}"
+
 # Connect directly with the string to avoid list-parsing bugs
-es_client = Elasticsearch(ES_HOST, verify_certs=False)
+es_client = Elasticsearch(
+    [ES_HOST],
+    basic_auth=(ES_USER, ES_PASS),
+    verify_certs=False
+)
 
 @app.get("/")
 def root():

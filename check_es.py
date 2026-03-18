@@ -1,23 +1,29 @@
 from elasticsearch import Elasticsearch
 import urllib3
 import json
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Disable SSL warnings for local network HTTPS
 urllib3.disable_warnings()
 
-# Configuration
-ES_HOST = "http://172.29.50.13:9200"
-ES_USER = "elastic"
-ES_PASS = "2W-HFs8RGlThS9id=R9d"
-ES_INDEX = "sma_logs"
+# Configuration - Use environment variables or default to localhost
+ES_USER = os.getenv("ES_USER", "elastic")
+ES_PASS = os.getenv("ES_PASS", "2W-HFs8RGlThS9id=R9d")
+ES_SERVER = os.getenv("ES_SERVER", "localhost")
+ES_PORT = os.getenv("ES_PORT", "9200")
+ES_INDEX = os.getenv("ES_INDEX", "sma_logs")
+
+ES_URL = f"http://{ES_USER}:{ES_PASS}@{ES_SERVER}:{ES_PORT}"
 
 # Connect
-es = Elasticsearch(
-    f"http://{ES_USER}:{ES_PASS}@172.29.50.13:9200"
-)
-
+es = Elasticsearch(ES_URL)
 
 try:
+    print(f"[*] Testing connection to: http://{ES_SERVER}:{ES_PORT}")
     # 1. Check if index exists
     if not es.indices.exists(index=ES_INDEX):
         print(f"[!] Error: Index '{ES_INDEX}' does NOT exist.")
